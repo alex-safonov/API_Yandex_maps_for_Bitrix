@@ -1,0 +1,199 @@
+
+<!-- Код для вывода карты с показом балунов -->
+
+	<style>
+        html, body, #ymap {
+            width: 100%; height: 500px; padding: 0; margin: 0;
+        }
+    </style>
+
+
+<script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU&apikey=2dc12b29-ecee-4523-9063-1fa9221ecbf4" type="text/javascript"></script>
+<script>
+var myMap;
+
+// Дождёмся загрузки API и готовности DOM.
+ymaps.ready(init);
+
+function init () {
+    myMap = new ymaps.Map('ymap', {
+        center:[55.76, 37.64],
+        zoom:10
+    });
+    myMap.controls.add('zoomControl');
+
+	var placemarks = []; //массив меток
+	var myGeoObjects = []; // массив обьектов для кластеризации
+	var clusterer = new ymaps.Clusterer({ preset: 'islands#invertedOrangeClusterIcons'}); // Выбираем внешний вид метки на карте
+	clusterer.options.set({
+		maxZoom: 16, //максимальный масштаб применения кластеризации
+    });	
+	var myCollection = new ymaps.GeoObjectCollection();
+
+
+<?
+foreach ($arFields as $key => $value) {
+	echo  "
+		myPlacemark = new ymaps.Placemark ([".$value['PROPERTY_MAP_VALUE']."], 
+		{
+            balloonContentHeader: '".$value['PROPERTY_CITY_VALUE']."',
+            balloonContentBody: '".$value['PROPERTY_ADDRESS_VALUE']."',
+            balloonContentFooter: '".$value['PROPERTY_PHONE_VALUE']."'
+		},
+		{
+			preset: 'islands#dotIcon',
+			iconColor: '#ff8000'
+		});
+	placemarks[".$key."] = myPlacemark; // id для внешнего вызова балуна
+	myCollection.add(myPlacemark); // в коллекцию для центровки и вывода
+	myGeoObjects.push(myPlacemark); // в обьекты для кластеризации
+";
+}
+
+?>
+
+	// Центровка и вывод элементов коллекции
+	myMap.geoObjects.add(myCollection);
+	myMap.setBounds(myCollection.getBounds());
+
+	// Вызов кластеризации
+	clusterer.add(myGeoObjects);
+	myMap.geoObjects.add(clusterer);
+
+  
+	$('.mapbaloon').on('click', function() { // Функция вызова балуна
+		var id_click = $(this).attr('id').substr(7);
+		console.log(id_click);
+		//Отцентрируем карту на нужной точке с масштабом до кластерирации
+		myMap.setCenter(placemarks[id_click].geometry.getCoordinates(), 17, { checkZoomRange: true }) 
+			.then(function () {
+				placemarks[id_click].balloon.open();
+			}, function (err) {
+				console.log('Произошла ошибка ' + err);
+			}, this);
+    });
+}
+</script>
+
+
+
+
+<div id="ymap"></div>
+
+	<div class="container bl15" style="margin-top:0px; padding-top: 0px !important" >  	 
+  <div class="container bl151"> 		 
+    <div class="row "> 			 
+      <div class="col-md-12"> 
+
+<?
+foreach ($arFields as $key => $value) {
+
+echo '<div class="col-md-3 mapbaloon" id="baloon_'.$key.'" style="cursor:pointer;">';
+
+	echo "<h3>".$value['PROPERTY_CITY_VALUE']."</h3>";
+	echo "<h4>".$value['PROPERTY_ADDRESS_VALUE'];
+	if($key == 0 ) {
+		echo "<br><span class='zadphoneKazan phone'>".$value['PROPERTY_PHONE_VALUE']."</span>";
+	} else {
+		echo "<br><span class='zadphoneKazan'>".$value['PROPERTY_PHONE_VALUE']."</span>";
+	}
+	echo "</h4></div>";
+}
+?>
+     		 	</div>
+     		</div>
+   	 	</div>
+ 	 </div>
+
+
+
+</div>
+
+<!-- Предыдущая версия использовала Google Maps
+
+<script>
+var gmap;
+var maxzoom = 5;
+var markers = new Array;
+var places = [
+    ['Москва',55.75399400, 37.62209300, '<h3>Москва</h3><h4>Ул. Люсиновская, 53 <br>+7 (495) 223-55-15</h4>'],
+    ['Краснодар',45.06148367, 38.96220200, '<h3>Краснодар</h3><h4>ул. Красных Партизан, д. 210<br>1 этаж <br>+7 (861) 277-34-77 </h4>'],
+    ['Симферополь',44.94682395, 34.10920650, '<h3>Симферополь</h3><h4>ул. Турецкая, 13 А<br>6 этаж, 601 кабинет <br>+7(978) 770-70-27 </h4>'],
+    ['Сочи',43.70903108, 39.7448905, '<h3>Сочи</h3><h4>ул. Горького, д. 26,<br>этаж 4, офис 19<br>тел: +7 (862) 295-93-85</h4>'],
+    ['Питер',59.91815364, 30.30557800, '<h3>Санкт-Петербург</h3><h4>Шведский пер., д. 2, подъезд 2<br>этаж 3, офис 320<br>7 (812) 385-57-50 </h4>'],
+    ['Пятигорск',44.05224557, 43.04586250, '<h3>Пятигорск</h3><h4>ул. Октябрьская, д.7Б <br>+7 (928) 826-22-16; +7 (928) 317-29-94<br>+7 (8793) 30-74-16; +7 (8793) 30-74-17</h4>'],
+    ['Ростов-на-Дону',47.25221300, 39.69359700, '<h3>Ростов-на-Дону</h3><h4>пер. Семашко, д. 117г<br>+7 (863) 201-84-84 </h4>'],
+    ['Ставрополь',45.03333300, 41.96666700, '<h3>Ставрополь</h3><h4>ул. Ленина, 219 <br>+7 (8652) 22-18-28, +7 988 958 9999 </h4>'],
+    ['Новороссийск',44.71666700, 37.76666700, '<h3>Новороссийск</h3><h4>пр. Дзержинского, д. 156-а<br>+7 (8617) 601-116 </h4>'],
+    ['Владикавказ',42.6971261, 44.4354572, '<h3>Владикавказ</h3><h4>пр. Коста 93 / ген. Плиева, д.34<br>бизнес-центр “Капитал Плаза”, офис 220<br>+7 (909) 473-44-55</h4>'],
+    ['Казань',55.79083300, 49.11444400, '<h3>Казань</h3><h4>ул. Марселя Салимжанова, д. 2В <br>+7 (843) 212-01-26,  +7 (962) 554-00-48 </h4>'],
+    ['Екатеринбург',56.834014230106, 60.621667547613, '<h3>Екатеринбург</h3><h4>ул. Энгельса, д. 36<br>БЦ «Филитцъ», офис 514 <br>+7 (343) 286-83-01</h4>'],
+];    
+var infowindow;
+
+function initialize() {
+    var mapOptions = {
+        zoom: maxzoom,
+        center: new google.maps.LatLng(55.75399400, 37.62209300),
+        panControl: false,
+        zoomControl: false,
+        scaleControl: true,
+        disableDoubleClickZoom: true,
+        scrollwheel: false,
+
+        styles: [{"featureType":"administrative","elementType":"geometry","stylers":[{"visibility":"off"},{"lightness":"-100"},{"gamma":"7.29"},{"weight":"0.01"}]},{"featureType":"administrative","elementType":"labels.text.fill","stylers":[{"color":"#444444"}]},{"featureType":"administrative.country","elementType":"geometry.fill","stylers":[{"visibility":"off"},{"lightness":"20"},{"gamma":"3.86"},{"hue":"#ff0000"},{"weight":"5.10"}]},{"featureType":"administrative.country","elementType":"geometry.stroke","stylers":[{"visibility":"off"},{"lightness":"72"}]},{"featureType":"administrative.land_parcel","elementType":"geometry.fill","stylers":[{"visibility":"off"},{"lightness":"-42"}]},{"featureType":"landscape","elementType":"all","stylers":[{"color":"#f2f2f2"}]},{"featureType":"landscape.man_made","elementType":"geometry","stylers":[{"visibility":"on"},{"lightness":"54"},{"saturation":"69"}]},{"featureType":"landscape.natural","elementType":"geometry.fill","stylers":[{"visibility":"on"}]},{"featureType":"landscape.natural","elementType":"geometry.stroke","stylers":[{"visibility":"on"}]},{"featureType":"landscape.natural","elementType":"labels.text.fill","stylers":[{"visibility":"off"},{"color":"#ff0000"},{"lightness":"-3"}]},{"featureType":"poi","elementType":"all","stylers":[{"visibility":"off"}]},{"featureType":"road","elementType":"all","stylers":[{"saturation":-100},{"lightness":45}]},{"featureType":"road.highway","elementType":"all","stylers":[{"visibility":"simplified"}]},{"featureType":"road.arterial","elementType":"labels.icon","stylers":[{"visibility":"off"}]},{"featureType":"transit","elementType":"all","stylers":[{"visibility":"off"}]},{"featureType":"water","elementType":"all","stylers":[{"color":"#e0c8d5"},{"visibility":"on"}]}]
+    }
+    gmap = new google.maps.Map(document.getElementById('map'), mapOptions);
+    
+    infowindow = new google.maps.InfoWindow({});
+
+    function setMarkers(map, locations) {
+        //Определяем область показа маркеров
+        var latlngbounds = new google.maps.LatLngBounds();   
+        var image = new google.maps.MarkerImage('/wp-content/uploads/map.png',      
+                  new google.maps.Size(20, 31),      
+                  new google.maps.Point(0,0),      
+                  new google.maps.Point(10,33));
+        for (var i = 0; i < places.length; i++) {
+            var myLatLng = new google.maps.LatLng(locations[i][1], locations[i][2]);
+
+            //Добавляем координаты маркера в область
+            latlngbounds.extend(myLatLng);
+            var marker = new google.maps.Marker({
+                position: myLatLng,
+                map: gmap,   
+                icon: image,
+                title: locations[i][0],
+            });
+            
+            google.maps.event.addListener(marker, 'click', function(p) {
+          var iwOuter = $('.gm-style-iw');
+          var iwBackground = iwOuter.prev();
+                for (i=0; i< places.length; i++){ // перебор массива с данными и поиск нужных координат
+                    if ((Math.round(p.latLng.lng()*100000000) == Math.round(places[i][2] * 100000000)) && (Math.round(p.latLng.lat()*100000000) == Math.round(places[i][1] * 100000000))){
+                        infowindow.setContent(places[i][3]); // установка данных в попапе из последнего параметра массива
+                        infowindow.open(gmap, markers[i]); // открытие попап
+                    }
+                }
+            });
+            
+            markers.push(marker);
+        }
+        //Центрируем и масштабируем карту
+        map.setCenter( latlngbounds.getCenter(), gmap.fitBounds(latlngbounds));  
+    };
+    
+    setMarkers(gmap, places);
+}
+
+google.maps.event.addDomListener(window, 'load', initialize);
+
+// центрирование карты
+function map_poz(a){
+    gmap.setCenter({lat: places[a][1]+1, lng: places[a][2]});
+    infowindow.setContent(places[a][3]); // установка данных в попапе из последнего параметра массива
+    infowindow.open(gmap, markers[a]);
+    return false;
+}
+</script>
+-->
